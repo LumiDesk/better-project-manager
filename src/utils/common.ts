@@ -349,3 +349,38 @@ export const commonSelectFolder = async (
 
   return { folderName: selectedFolder, cancelled: false };
 };
+
+/**
+ * 删除未被任何项目或文件夹引用的图标文件
+ * @param iconName 图标文件名
+ * @param configFile 项目配置文件路径
+ */
+export const deleteIconIfUnused = (
+  iconName: string | undefined,
+  configFile: string
+): void => {
+  if (!iconName) {
+    return;
+  }
+
+  // 仍被某个项目引用则不删除
+  if (loadProjects(configFile).some((p) => p.icon === iconName)) {
+    return;
+  }
+
+  // 仍被某个文件夹引用则不删除
+  if (loadFolderConfigs(configFile).some((f) => f.icon === iconName)) {
+    return;
+  }
+
+  // 无任何引用，删除图标文件
+  const iconPath = path.join(path.dirname(configFile), iconName);
+  try {
+    if (fs.existsSync(iconPath)) {
+      fs.unlinkSync(iconPath);
+      log(`已删除未使用的图标文件: ${iconName}`);
+    }
+  } catch (error) {
+    log(`删除图标文件失败: ${error}`, "warn");
+  }
+};
