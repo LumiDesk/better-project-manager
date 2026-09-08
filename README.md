@@ -6,7 +6,7 @@
 
 一个用于管理多个项目的 **VS Code 扩展** —— 添加、组织、快速访问你的项目。
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
+![Version](https://img.shields.io/badge/version-0.2.1-blue)
 ![License](https://img.shields.io/badge/license-GPL--3.0-green)
 ![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.100.0-007ACC?logo=visual-studio-code&logoColor=white)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)

@@ -18,7 +18,7 @@
     "name": "Talyra42",
     "email": "kaedeshimizu@qq.com"
   },
-  "version": "0.2.0",
+  "version": "0.2.1",
   "packageManager": "pnpm@11.17.0",
   "engines": {
     "vscode": "^1.100.0"
