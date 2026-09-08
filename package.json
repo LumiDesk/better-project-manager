@@ -20,13 +20,22 @@
   },
   "version": "0.1.5",
   "engines": {
-    "vscode": "^1.100.0"
+    "vscode": "^1.136.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
   "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "需要访问本地文件系统以打开和管理项目"
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "项目管理依赖本地文件夹，无法在虚拟工作区中使用"
+    }
+  },
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -233,7 +242,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "@types/vscode": "^1.100.0",
+    "@types/vscode": "^1.136.0",
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.42.0",
     "esbuild": "^0.25.9",
