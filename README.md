@@ -79,6 +79,16 @@ pnpm run compile    # 类型检查 + lint + 打包
 
 在 VS Code 中打开项目，按 **F5** 启动扩展开发宿主进行调试。
 
+## 🚀 发布新版本
+
+本项目不发布到 VS Code 商店，改为通过 GitHub Actions 构建 `.vsix` 供手动安装。
+
+```bash
+pnpm release patch   # patch / minor / major / 或具体版本号（如 0.3.0）
+```
+
+脚本会自动：升级版本号 → 提交 → 打 tag → 推送。推送后 GitHub Actions 自动构建 `.vsix` 并创建 pre-release，在 [Releases](https://github.com/LumiDesk/better-project-manager/releases) 页面下载安装即可。
+
 ## 📄 许可证
 
 [GPL-3.0](./LICENSE) © Talyra42

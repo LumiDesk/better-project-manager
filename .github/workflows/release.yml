@@ -1,0 +1,66 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Package VSIX
+        run: pnpm exec vsce package
+
+      - name: Prepare release notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          VSIX="better-project-manager-${VERSION}.vsix"
+          PREV=$(git for-each-ref --sort=-creatordate --format '%(refname:strip=2)' 'refs/tags/v*' | grep -v "^${GITHUB_REF_NAME}$" | head -n1)
+          REPO="https://github.com/${GITHUB_REPOSITORY}"
+          {
+            if [ -n "$PREV" ]; then
+              echo "### [${PREV}](${REPO}/releases/tag/${PREV}) → [v${VERSION}](${REPO}/releases/tag/v${VERSION})"
+            else
+              echo "### [v${VERSION}](${REPO}/releases/tag/v${VERSION})"
+            fi
+            echo
+            echo "[查看完整变更日志](${REPO}/blob/master/CHANGELOG.md)"
+            echo
+            echo "## 安装"
+            echo
+            echo "下载下方 **Assets** 中的 \`${VSIX}\`，然后在 VS Code 中执行："
+            echo
+            echo "\`\`\`"
+            echo "code --install-extension ${VSIX}"
+            echo "\`\`\`"
+          } > release-notes.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          files: "*.vsix"
+          body_path: release-notes.md
