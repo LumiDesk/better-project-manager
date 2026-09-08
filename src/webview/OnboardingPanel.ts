@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 
 /**
  * 新手引导 Webview 面板
- * 交互式 todo + 图文
+ * 纯文字 + 步骤指示器的轻量引导
  */
 export class OnboardingPanel {
   public static currentPanel: OnboardingPanel | undefined;
@@ -14,25 +14,22 @@ export class OnboardingPanel {
 
   static readonly steps = [
     {
-      title: "打开侧边栏",
+      icon: "🗂️",
+      title: "欢迎使用项目管理器",
       description:
-        "点击左侧活动栏中的项目管理图标以打开 Project Manager 侧边栏。",
-      image: "image.png",
+        "点击左侧活动栏中的「项目管理器」图标，打开项目列表。你保存的所有项目都会集中显示在这里，随时快速切换。",
     },
     {
-      title: "基本功能说明",
-      description: "项目支持分组、重命名、删除等，可右键快速操作。",
-      image: "image-2.png",
+      icon: "➕",
+      title: "添加你的项目",
+      description:
+        "点击侧边栏顶部的「保存当前文件夹」或「添加项目」，即可把常用项目加入列表。支持按文件夹分组、为项目设置自定义图标。",
     },
     {
-      title: "项目右键操作",
-      description: "在项目上右键可进行打开、重命名、设置图标等操作。",
-      image: "image-3.png",
-    },
-    {
-      title: "拖动项目操作",
-      description: "直接拖动项目, 进行跨文件夹移动。",
-      image: "Snipaste_2025-10-25_15-58-34.jpg",
+      icon: "⚡",
+      title: "快速打开，轻松整理",
+      description:
+        "点击项目即可打开，用顶部 🔍 搜索快速定位。右键可重命名、换图标、移动分组，也能直接拖拽项目到文件夹。",
     },
   ];
 
@@ -118,14 +115,6 @@ export class OnboardingPanel {
 
   private _getHtmlForWebview(): string {
     const step = OnboardingPanel.steps[this._completedStep];
-    const imgUri = this._panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(
-        this._extensionUri,
-        "resources",
-        "readme-assets",
-        step.image
-      )
-    );
     const cssUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(
         this._extensionUri,
@@ -144,19 +133,20 @@ export class OnboardingPanel {
     );
     const cspSource = this._panel.webview.cspSource;
 
-    // todo 列表 html
-    const todoList = OnboardingPanel.steps
-      .map((s, idx) => {
-        const done = idx < this._completedStep;
-        const current = idx === this._completedStep;
-        return `<li>
-            <span class="step-badge${done ? " done" : ""}">${
-          done ? "✔" : idx + 1
-        }</span>
-            <span class="step-label${current ? " current" : ""}">${s.title}</span>
-          </li>`;
+    // 步骤指示器圆点
+    const dots = OnboardingPanel.steps
+      .map((_, idx) => {
+        const cls =
+          idx < this._completedStep
+            ? "done"
+            : idx === this._completedStep
+              ? "active"
+              : "";
+        return `<span class="dot ${cls}"></span>`;
       })
       .join("");
+
+    const isLast = this._completedStep === OnboardingPanel.steps.length - 1;
 
     return `
       <!DOCTYPE html>
@@ -167,30 +157,21 @@ export class OnboardingPanel {
         <title>项目管理器新手引导</title>
         <meta
           http-equiv="Content-Security-Policy"
-          content="default-src 'none'; img-src ${cspSource} https:; style-src ${cspSource}; script-src ${cspSource};"
+          content="default-src 'none'; style-src ${cspSource}; script-src ${cspSource};"
         />
         <link rel="stylesheet" href="${cssUri}" />
       </head>
       <body>
-        <div class="main">
-          <aside class="sidebar">
-            <h2>新手任务</h2>
-            <ul class="steps">${todoList}</ul>
-          </aside>
-          <section class="right">
-            <div class="intro-title">${step.title}</div>
-            <div class="intro-desc">${step.description}</div>
-            <div class="img-card"><img src="${imgUri}"/></div>
-            <div class="toolbar">
-              <button id="nextBtn">${
-                this._completedStep < OnboardingPanel.steps.length - 1
-                  ? "下一步"
-                  : "完成体验"
-              }</button>
-              <button id="skipBtn" class="skip">跳过本教程</button>
-            </div>
-          </section>
-        </div>
+        <main class="onboarding">
+          <div class="step-indicator">${dots}</div>
+          <div class="icon">${step.icon}</div>
+          <h1 class="title">${step.title}</h1>
+          <p class="desc">${step.description}</p>
+          <div class="toolbar">
+            <button id="nextBtn">${isLast ? "开始使用" : "下一步"}</button>
+            <button id="skipBtn" class="skip">跳过引导</button>
+          </div>
+        </main>
         <script src="${jsUri}"></script>
       </body>
       </html>
