@@ -67,6 +67,19 @@ export const normalizePathForCompare = (p: string): string => {
 export const generateProjectId = (): string => randomUUID();
 
 /**
+ * 检查路径是否为存在的目录
+ * @param p 待检查路径
+ * @returns 是否为存在的目录
+ */
+export const isDirectory = (p: string): boolean => {
+  try {
+    return fs.existsSync(p) && fs.statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
+};
+
+/**
  * 验证项目数据结构
  * @param data 待验证的数据
  * @returns 是否为有效的项目数组

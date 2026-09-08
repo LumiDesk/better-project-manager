@@ -13,6 +13,7 @@ import {
   normalizePathForCompare,
   generateProjectId,
   deleteIconIfUnused,
+  isDirectory,
 } from "../utils/common";
 import { IconManager, ICON_FILE_FILTERS } from "../utils/iconManager";
 
@@ -65,11 +66,7 @@ export class CommandHandlers {
    * @returns 是否存在
    */
   private __isProjectPathValid(projectPath: string): boolean {
-    try {
-      return fs.existsSync(projectPath) && fs.statSync(projectPath).isDirectory();
-    } catch {
-      return false;
-    }
+    return isDirectory(projectPath);
   }
 
   /**
