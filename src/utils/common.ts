@@ -2,6 +2,7 @@ import type { ProjectItem, FolderConfig, ConfigData } from "../types/project";
 import * as path from "path";
 import * as fs from "fs";
 import * as vscode from "vscode";
+import { randomUUID } from "crypto";
 
 /**
  * 日志输出通道
@@ -39,6 +40,23 @@ export function log(
     console.log(formattedMessage);
   }
 }
+
+/**
+ * 标准化路径用于比较
+ * @description Windows 下忽略大小写，并解析相对路径与尾斜杠差异
+ * @param p 待标准化路径
+ * @returns 标准化后的路径
+ */
+export const normalizePathForCompare = (p: string): string => {
+  const resolved = path.resolve(p);
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+};
+
+/**
+ * 生成唯一的项目 id
+ * @returns 随机 UUID
+ */
+export const generateProjectId = (): string => randomUUID();
 
 /**
  * 验证项目数据结构

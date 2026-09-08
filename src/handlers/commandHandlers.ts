@@ -10,6 +10,8 @@ import {
   getFolderConfig,
   renameFolderConfig,
   deleteFolderConfig,
+  normalizePathForCompare,
+  generateProjectId,
 } from "../utils/common";
 import { IconManager, ICON_FILE_FILTERS } from "../utils/iconManager";
 
@@ -45,13 +47,14 @@ export class CommandHandlers {
       return false;
     }
 
-    // 标准化路径以进行比较
-    const normalizedProjectPath = path.normalize(projectPath);
+    // 标准化路径以进行比较（Windows 下忽略大小写）
+    const normalizedProjectPath = normalizePathForCompare(projectPath);
 
     // 检查当前打开的工作区文件夹是否与项目路径相同
     return workspaceFolders.some((folder) => {
-      const normalizedFolderPath = path.normalize(folder.uri.fsPath);
-      return normalizedFolderPath === normalizedProjectPath;
+      return (
+        normalizePathForCompare(folder.uri.fsPath) === normalizedProjectPath
+      );
     });
   }
 
@@ -243,7 +246,7 @@ export class CommandHandlers {
 
     const projects = loadProjects(this.configFile);
     projects.push({
-      id: new Date().getTime().toString(36),
+      id: generateProjectId(),
       name: name.trim(),
       path: folderUri[0].fsPath,
       icon: iconName || undefined,
@@ -570,7 +573,7 @@ export class CommandHandlers {
 
     const projects = loadProjects(this.configFile);
     projects.push({
-      id: new Date().getTime().toString(36),
+      id: generateProjectId(),
       name: name.trim(),
       path: currentFolderPath,
       icon: iconName || undefined,

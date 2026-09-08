@@ -214,7 +214,7 @@
       "properties": {
         "betterProjectManager.showProjectPath": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "是否在项目中显示项目路径"
         },
         "betterProjectManager.showDefaultProjectIcon": {
