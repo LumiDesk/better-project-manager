@@ -105,7 +105,7 @@ export class OnboardingPanel {
     if (this._onComplete) {
       this._onComplete();
     }
-    
+
     OnboardingPanel.currentPanel = undefined;
     while (this._disposables.length) {
       const d = this._disposables.pop();
@@ -126,29 +126,36 @@ export class OnboardingPanel {
         step.image
       )
     );
+    const cssUri = this._panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this._extensionUri,
+        "resources",
+        "readme-assets",
+        "onboarding.css"
+      )
+    );
+    const jsUri = this._panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this._extensionUri,
+        "resources",
+        "readme-assets",
+        "onboarding.js"
+      )
+    );
+    const cspSource = this._panel.webview.cspSource;
 
     // todo 列表 html
     const todoList = OnboardingPanel.steps
-      .map(
-        (s, idx) =>
-          `<li style="margin-bottom:12px; list-style:none;">
-            <span style="
-              display:inline-block;
-              width:18px;height:18px;
-              border-radius:4px;
-              border:1px solid #888;
-              background:${idx < this._completedStep ? "#4caf50" : "#fff"};
-              color:${idx < this._completedStep ? "#fff" : "#333"};
-              text-align:center;
-              line-height:18px;
-              margin-right:6px;">${
-                idx < this._completedStep ? "✔" : idx + 1
-              }</span>
-            <span style="font-weight:${
-              idx === this._completedStep ? "bold" : "normal"
-            }">${s.title}</span>
-          </li>`
-      )
+      .map((s, idx) => {
+        const done = idx < this._completedStep;
+        const current = idx === this._completedStep;
+        return `<li>
+            <span class="step-badge${done ? " done" : ""}">${
+          done ? "✔" : idx + 1
+        }</span>
+            <span class="step-label${current ? " current" : ""}">${s.title}</span>
+          </li>`;
+      })
       .join("");
 
     return `
@@ -158,82 +165,11 @@ export class OnboardingPanel {
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <title>项目管理器新手引导</title>
-        <style>
-          :root {
-            --text-color: #292929;
-            --desc-color: #555;
-            --step-done-bg: #4caf50;
-            --step-done-text: #fff;
-            --step-todo-bg: #fff;
-            --step-todo-text: #333;
-          }
-          @media (prefers-color-scheme: dark) {
-            :root {
-              --text-color: #e5e7ef;
-              --desc-color: #b7b8cb;
-              --step-done-bg: #53c86a;
-              --step-done-text: #20222a;
-              --step-todo-bg: #292929;
-              --step-todo-text: #e5e7ef;
-            }
-          }
-          @media (prefers-color-scheme: light) {
-            :root {
-              --text-color: #292929;
-              --desc-color: #555;
-              --step-done-bg: #4caf50;
-              --step-done-text: #fff;
-              --step-todo-bg: #fff;
-              --step-todo-text: #333;
-            }
-          }
-          body {
-            font-family: "Segoe UI", "Noto Sans", "Arial", sans-serif;
-            color: var(--text-color);
-            background: transparent !important;
-            margin:0;
-            padding:0;
-          }
-          .main {
-            display: flex;
-            flex-direction: row;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            /* 居中内容 */
-          }
-          .sidebar {
-            width: 260px;
-            /* background: none; 透明背景 */
-            padding:32px 16px 16px 32px;
-            /* box-shadow:2px 0 12px rgba(33,33,33,0.07);  */
-            border-right: 1px solid #e0e0e020;
-            /* 左侧轻微分隔，可选 */
-          }
-          .sidebar h2 { font-size:20px; margin-top:0; margin-bottom:18px;}
-          .steps { margin-bottom:32px; }
-          .right {
-            flex:1;
-            padding:32px 42px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-          }
-          .intro-title { font-size:19px; font-weight:bold; margin-bottom:18px;}
-          .intro-desc { color: var(--desc-color); font-size:15px; margin-bottom:24px;}
-          .img-card {
-            background: none;
-            border-radius:10px;
-            box-shadow: none;
-            padding:12px;
-            text-align:center;
-          }
-          .img-card img { max-width:470px; width:98%; border-radius:9px; }
-          .toolbar { margin-top:36px; text-align: center; }
-          button { font-size:15px; border:none; border-radius:5px; padding:7px 28px; cursor:pointer; margin-right:14px; background:#3b7cff; color:#fff;}
-          button.skip { background:#888;}
-        </style>
+        <meta
+          http-equiv="Content-Security-Policy"
+          content="default-src 'none'; img-src ${cspSource} https:; style-src ${cspSource}; script-src ${cspSource};"
+        />
+        <link rel="stylesheet" href="${cssUri}" />
       </head>
       <body>
         <div class="main">
@@ -255,26 +191,7 @@ export class OnboardingPanel {
             </div>
           </section>
         </div>
-        <script>
-          (function() {
-            // 获取 VS Code API（只能调用一次）
-            const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
-            
-            function sendMessage(command) {
-              if (vscode) {
-                vscode.postMessage({ command: command });
-              }
-            }
-            
-            document.getElementById('nextBtn').addEventListener('click', function() {
-              sendMessage('next');
-            });
-            
-            document.getElementById('skipBtn').addEventListener('click', function() {
-              sendMessage('skip');
-            });
-          })();
-        </script>
+        <script src="${jsUri}"></script>
       </body>
       </html>
     `;
