@@ -179,14 +179,6 @@ export class CommandHandlers {
    * * 添加新项目
    */
   async handleAddProject(): Promise<void> {
-    const name = await vscode.window.showInputBox({
-      prompt: "输入项目名称",
-    });
-
-    if (!name || !name.trim()) {
-      return;
-    }
-
     const folderUri = await vscode.window.showOpenDialog({
       canSelectFolders: true,
       canSelectFiles: false,
@@ -210,8 +202,18 @@ export class CommandHandlers {
       return;
     }
 
-    // 询问是否添加到文件夹
-    const addToFolder = await vscode.window.showQuickPick(["是", "否"], {
+    // 项目名称默认使用文件夹名称
+    const name = await vscode.window.showInputBox({
+      prompt: "输入项目名称",
+      value: path.basename(folderUri[0].fsPath),
+    });
+
+    if (!name || !name.trim()) {
+      return;
+    }
+
+    // 询问是否添加到文件夹（默认否）
+    const addToFolder = await vscode.window.showQuickPick(["否", "是"], {
       placeHolder: "是否将项目添加到文件夹？",
       canPickMany: false,
     });
@@ -229,8 +231,8 @@ export class CommandHandlers {
       folderName = res.folderName;
     }
 
-    // 询问是否设置图标
-    const setIcon = await vscode.window.showQuickPick(["是", "否"], {
+    // 询问是否设置图标（默认否）
+    const setIcon = await vscode.window.showQuickPick(["否", "是"], {
       placeHolder: "是否设置项目图标？",
       canPickMany: false,
     });
@@ -562,8 +564,8 @@ export class CommandHandlers {
       return;
     }
 
-    // 询问是否添加到文件夹
-    const addToFolder = await vscode.window.showQuickPick(["是", "否"], {
+    // 询问是否添加到文件夹（默认否）
+    const addToFolder = await vscode.window.showQuickPick(["否", "是"], {
       placeHolder: "是否将项目添加到文件夹？",
       canPickMany: false,
     });
@@ -581,8 +583,8 @@ export class CommandHandlers {
       folderNameValue = res.folderName;
     }
 
-    // 询问是否设置图标
-    const setIcon = await vscode.window.showQuickPick(["是", "否"], {
+    // 询问是否设置图标（默认否）
+    const setIcon = await vscode.window.showQuickPick(["否", "是"], {
       placeHolder: "是否设置项目图标？",
       canPickMany: false,
     });
