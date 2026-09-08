@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 
 /**
  * 新手引导 Webview 面板
- * 交互式 todo + 图文
+ * 纯文字 + 步骤指示器的轻量引导
  */
 export class OnboardingPanel {
   public static currentPanel: OnboardingPanel | undefined;
@@ -14,25 +14,22 @@ export class OnboardingPanel {
 
   static readonly steps = [
     {
-      title: "打开侧边栏",
+      icon: "🗂️",
+      title: "欢迎使用项目管理器",
       description:
-        "点击左侧活动栏中的项目管理图标以打开 Project Manager 侧边栏。",
-      image: "image.png",
+        "点击左侧活动栏中的「项目管理器」图标，打开项目列表。你保存的所有项目都会集中显示在这里，随时快速切换。",
     },
     {
-      title: "基本功能说明",
-      description: "项目支持分组、重命名、删除等，可右键快速操作。",
-      image: "image-2.png",
+      icon: "➕",
+      title: "添加你的项目",
+      description:
+        "点击侧边栏顶部的「保存当前文件夹」或「添加项目」，即可把常用项目加入列表。支持按文件夹分组、为项目设置自定义图标。",
     },
     {
-      title: "项目右键操作",
-      description: "在项目上右键可进行打开、重命名、设置图标等操作。",
-      image: "image-3.png",
-    },
-    {
-      title: "拖动项目操作",
-      description: "直接拖动项目, 进行跨文件夹移动。",
-      image: "Snipaste_2025-10-25_15-58-34.jpg",
+      icon: "⚡",
+      title: "快速打开，轻松整理",
+      description:
+        "点击项目即可打开，用顶部 🔍 搜索快速定位。右键可重命名、换图标、移动分组，也能直接拖拽项目到文件夹。",
     },
   ];
 
@@ -105,7 +102,7 @@ export class OnboardingPanel {
     if (this._onComplete) {
       this._onComplete();
     }
-    
+
     OnboardingPanel.currentPanel = undefined;
     while (this._disposables.length) {
       const d = this._disposables.pop();
@@ -118,38 +115,38 @@ export class OnboardingPanel {
 
   private _getHtmlForWebview(): string {
     const step = OnboardingPanel.steps[this._completedStep];
-    const imgUri = this._panel.webview.asWebviewUri(
+    const cssUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(
         this._extensionUri,
         "resources",
         "readme-assets",
-        step.image
+        "onboarding.css"
       )
     );
-
-    // todo 列表 html
-    const todoList = OnboardingPanel.steps
-      .map(
-        (s, idx) =>
-          `<li style="margin-bottom:12px; list-style:none;">
-            <span style="
-              display:inline-block;
-              width:18px;height:18px;
-              border-radius:4px;
-              border:1px solid #888;
-              background:${idx < this._completedStep ? "#4caf50" : "#fff"};
-              color:${idx < this._completedStep ? "#fff" : "#333"};
-              text-align:center;
-              line-height:18px;
-              margin-right:6px;">${
-                idx < this._completedStep ? "✔" : idx + 1
-              }</span>
-            <span style="font-weight:${
-              idx === this._completedStep ? "bold" : "normal"
-            }">${s.title}</span>
-          </li>`
+    const jsUri = this._panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this._extensionUri,
+        "resources",
+        "readme-assets",
+        "onboarding.js"
       )
+    );
+    const cspSource = this._panel.webview.cspSource;
+
+    // 步骤指示器圆点
+    const dots = OnboardingPanel.steps
+      .map((_, idx) => {
+        const cls =
+          idx < this._completedStep
+            ? "done"
+            : idx === this._completedStep
+              ? "active"
+              : "";
+        return `<span class="dot ${cls}"></span>`;
+      })
       .join("");
+
+    const isLast = this._completedStep === OnboardingPanel.steps.length - 1;
 
     return `
       <!DOCTYPE html>
@@ -158,123 +155,24 @@ export class OnboardingPanel {
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <title>项目管理器新手引导</title>
-        <style>
-          :root {
-            --text-color: #292929;
-            --desc-color: #555;
-            --step-done-bg: #4caf50;
-            --step-done-text: #fff;
-            --step-todo-bg: #fff;
-            --step-todo-text: #333;
-          }
-          @media (prefers-color-scheme: dark) {
-            :root {
-              --text-color: #e5e7ef;
-              --desc-color: #b7b8cb;
-              --step-done-bg: #53c86a;
-              --step-done-text: #20222a;
-              --step-todo-bg: #292929;
-              --step-todo-text: #e5e7ef;
-            }
-          }
-          @media (prefers-color-scheme: light) {
-            :root {
-              --text-color: #292929;
-              --desc-color: #555;
-              --step-done-bg: #4caf50;
-              --step-done-text: #fff;
-              --step-todo-bg: #fff;
-              --step-todo-text: #333;
-            }
-          }
-          body {
-            font-family: "Segoe UI", "Noto Sans", "Arial", sans-serif;
-            color: var(--text-color);
-            background: transparent !important;
-            margin:0;
-            padding:0;
-          }
-          .main {
-            display: flex;
-            flex-direction: row;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            /* 居中内容 */
-          }
-          .sidebar {
-            width: 260px;
-            /* background: none; 透明背景 */
-            padding:32px 16px 16px 32px;
-            /* box-shadow:2px 0 12px rgba(33,33,33,0.07);  */
-            border-right: 1px solid #e0e0e020;
-            /* 左侧轻微分隔，可选 */
-          }
-          .sidebar h2 { font-size:20px; margin-top:0; margin-bottom:18px;}
-          .steps { margin-bottom:32px; }
-          .right {
-            flex:1;
-            padding:32px 42px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-          }
-          .intro-title { font-size:19px; font-weight:bold; margin-bottom:18px;}
-          .intro-desc { color: var(--desc-color); font-size:15px; margin-bottom:24px;}
-          .img-card {
-            background: none;
-            border-radius:10px;
-            box-shadow: none;
-            padding:12px;
-            text-align:center;
-          }
-          .img-card img { max-width:470px; width:98%; border-radius:9px; }
-          .toolbar { margin-top:36px; text-align: center; }
-          button { font-size:15px; border:none; border-radius:5px; padding:7px 28px; cursor:pointer; margin-right:14px; background:#3b7cff; color:#fff;}
-          button.skip { background:#888;}
-        </style>
+        <meta
+          http-equiv="Content-Security-Policy"
+          content="default-src 'none'; style-src ${cspSource}; script-src ${cspSource};"
+        />
+        <link rel="stylesheet" href="${cssUri}" />
       </head>
       <body>
-        <div class="main">
-          <aside class="sidebar">
-            <h2>新手任务</h2>
-            <ul class="steps">${todoList}</ul>
-          </aside>
-          <section class="right">
-            <div class="intro-title">${step.title}</div>
-            <div class="intro-desc">${step.description}</div>
-            <div class="img-card"><img src="${imgUri}"/></div>
-            <div class="toolbar">
-              <button id="nextBtn">${
-                this._completedStep < OnboardingPanel.steps.length - 1
-                  ? "下一步"
-                  : "完成体验"
-              }</button>
-              <button id="skipBtn" class="skip">跳过本教程</button>
-            </div>
-          </section>
-        </div>
-        <script>
-          (function() {
-            // 获取 VS Code API（只能调用一次）
-            const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
-            
-            function sendMessage(command) {
-              if (vscode) {
-                vscode.postMessage({ command: command });
-              }
-            }
-            
-            document.getElementById('nextBtn').addEventListener('click', function() {
-              sendMessage('next');
-            });
-            
-            document.getElementById('skipBtn').addEventListener('click', function() {
-              sendMessage('skip');
-            });
-          })();
-        </script>
+        <main class="onboarding">
+          <div class="step-indicator">${dots}</div>
+          <div class="icon">${step.icon}</div>
+          <h1 class="title">${step.title}</h1>
+          <p class="desc">${step.description}</p>
+          <div class="toolbar">
+            <button id="nextBtn">${isLast ? "开始使用" : "下一步"}</button>
+            <button id="skipBtn" class="skip">跳过引导</button>
+          </div>
+        </main>
+        <script src="${jsUri}"></script>
       </body>
       </html>
     `;

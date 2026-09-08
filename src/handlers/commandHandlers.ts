@@ -10,6 +10,10 @@ import {
   getFolderConfig,
   renameFolderConfig,
   deleteFolderConfig,
+  normalizePathForCompare,
+  generateProjectId,
+  deleteIconIfUnused,
+  isDirectory,
 } from "../utils/common";
 import { IconManager, ICON_FILE_FILTERS } from "../utils/iconManager";
 
@@ -45,13 +49,14 @@ export class CommandHandlers {
       return false;
     }
 
-    // 标准化路径以进行比较
-    const normalizedProjectPath = path.normalize(projectPath);
+    // 标准化路径以进行比较（Windows 下忽略大小写）
+    const normalizedProjectPath = normalizePathForCompare(projectPath);
 
     // 检查当前打开的工作区文件夹是否与项目路径相同
     return workspaceFolders.some((folder) => {
-      const normalizedFolderPath = path.normalize(folder.uri.fsPath);
-      return normalizedFolderPath === normalizedProjectPath;
+      return (
+        normalizePathForCompare(folder.uri.fsPath) === normalizedProjectPath
+      );
     });
   }
 
@@ -61,11 +66,7 @@ export class CommandHandlers {
    * @returns 是否存在
    */
   private __isProjectPathValid(projectPath: string): boolean {
-    try {
-      return fs.existsSync(projectPath) && fs.statSync(projectPath).isDirectory();
-    } catch {
-      return false;
-    }
+    return isDirectory(projectPath);
   }
 
   /**
@@ -178,14 +179,6 @@ export class CommandHandlers {
    * * 添加新项目
    */
   async handleAddProject(): Promise<void> {
-    const name = await vscode.window.showInputBox({
-      prompt: "输入项目名称",
-    });
-
-    if (!name || !name.trim()) {
-      return;
-    }
-
     const folderUri = await vscode.window.showOpenDialog({
       canSelectFolders: true,
       canSelectFiles: false,
@@ -197,8 +190,30 @@ export class CommandHandlers {
       return;
     }
 
-    // 询问是否添加到文件夹
-    const addToFolder = await vscode.window.showQuickPick(["是", "否"], {
+    // 检查是否已存在相同路径的项目
+    if (
+      loadProjects(this.configFile).some(
+        (p) =>
+          normalizePathForCompare(p.path) ===
+          normalizePathForCompare(folderUri[0].fsPath)
+      )
+    ) {
+      vscode.window.showWarningMessage("该文件夹已作为项目存在，请勿重复添加");
+      return;
+    }
+
+    // 项目名称默认使用文件夹名称
+    const name = await vscode.window.showInputBox({
+      prompt: "输入项目名称",
+      value: path.basename(folderUri[0].fsPath),
+    });
+
+    if (!name || !name.trim()) {
+      return;
+    }
+
+    // 询问是否添加到文件夹（默认否）
+    const addToFolder = await vscode.window.showQuickPick(["否", "是"], {
       placeHolder: "是否将项目添加到文件夹？",
       canPickMany: false,
     });
@@ -216,8 +231,8 @@ export class CommandHandlers {
       folderName = res.folderName;
     }
 
-    // 询问是否设置图标
-    const setIcon = await vscode.window.showQuickPick(["是", "否"], {
+    // 询问是否设置图标（默认否）
+    const setIcon = await vscode.window.showQuickPick(["否", "是"], {
       placeHolder: "是否设置项目图标？",
       canPickMany: false,
     });
@@ -243,7 +258,7 @@ export class CommandHandlers {
 
     const projects = loadProjects(this.configFile);
     projects.push({
-      id: new Date().getTime().toString(36),
+      id: generateProjectId(),
       name: name.trim(),
       path: folderUri[0].fsPath,
       icon: iconName || undefined,
@@ -326,6 +341,7 @@ export class CommandHandlers {
 
     if (confirm === "删除") {
       const projects = loadProjects(this.configFile);
+      const iconName = getFolderConfig(item.name, this.configFile)?.icon;
 
       // 移除所有项目的文件夹属性
       projects.forEach((project) => {
@@ -338,6 +354,7 @@ export class CommandHandlers {
       deleteFolderConfig(item.name, this.configFile);
 
       saveProjects(projects, this.configFile);
+      deleteIconIfUnused(iconName, this.configFile);
       this.__refreshTree();
     }
   }
@@ -363,6 +380,8 @@ export class CommandHandlers {
       this.configFile
     );
 
+    const oldIconName = getFolderConfig(item.name, this.configFile)?.icon;
+
     // 更新文件夹配置
     updateFolderConfig(
       {
@@ -372,6 +391,7 @@ export class CommandHandlers {
       this.configFile
     );
 
+    deleteIconIfUnused(oldIconName, this.configFile);
     this.__refreshTree();
     vscode.window.showInformationMessage(`已更新文件夹 "${item.name}" 的图标`);
   }
@@ -388,6 +408,7 @@ export class CommandHandlers {
       return;
     }
 
+    const iconName = folderConfig.icon;
     // 更新文件夹配置，移除图标
     updateFolderConfig(
       {
@@ -397,6 +418,7 @@ export class CommandHandlers {
       this.configFile
     );
 
+    deleteIconIfUnused(iconName, this.configFile);
     this.__refreshTree();
     vscode.window.showInformationMessage(`已重置文件夹 "${item.name}" 的图标`);
   }
@@ -442,8 +464,10 @@ export class CommandHandlers {
     );
 
     if (confirm === "删除") {
+      const iconName = projects[idx].icon;
       projects.splice(idx, 1);
       saveProjects(projects, this.configFile);
+      deleteIconIfUnused(iconName, this.configFile);
       this.__refreshTree();
     }
   }
@@ -475,8 +499,10 @@ export class CommandHandlers {
       return;
     }
 
+    const oldIconName = projects[idx].icon;
     projects[idx].icon = iconName;
     saveProjects(projects, this.configFile);
+    deleteIconIfUnused(oldIconName, this.configFile);
     this.__refreshTree();
   }
 
@@ -491,11 +517,13 @@ export class CommandHandlers {
       return;
     }
 
+    const iconName = projects[idx].icon;
     // 直接移除项目的图标即可
     delete projects[idx].icon;
 
     // 通用保存操作
     saveProjects(projects, this.configFile);
+    deleteIconIfUnused(iconName, this.configFile);
     this.__refreshTree();
     vscode.window.showInformationMessage(`已重置项目 "${item.name}" 的图标`);
   }
@@ -514,6 +542,18 @@ export class CommandHandlers {
     const currentFolderPath = workspaceFolders[0].uri.fsPath;
     const folderName = path.basename(currentFolderPath);
 
+    // 检查是否已存在相同路径的项目
+    if (
+      loadProjects(this.configFile).some(
+        (p) =>
+          normalizePathForCompare(p.path) ===
+          normalizePathForCompare(currentFolderPath)
+      )
+    ) {
+      vscode.window.showWarningMessage("当前文件夹已作为项目存在，请勿重复添加");
+      return;
+    }
+
     // 询问项目名称，默认使用文件夹名称
     const name = await vscode.window.showInputBox({
       prompt: "输入项目名称",
@@ -524,8 +564,8 @@ export class CommandHandlers {
       return;
     }
 
-    // 询问是否添加到文件夹
-    const addToFolder = await vscode.window.showQuickPick(["是", "否"], {
+    // 询问是否添加到文件夹（默认否）
+    const addToFolder = await vscode.window.showQuickPick(["否", "是"], {
       placeHolder: "是否将项目添加到文件夹？",
       canPickMany: false,
     });
@@ -543,8 +583,8 @@ export class CommandHandlers {
       folderNameValue = res.folderName;
     }
 
-    // 询问是否设置图标
-    const setIcon = await vscode.window.showQuickPick(["是", "否"], {
+    // 询问是否设置图标（默认否）
+    const setIcon = await vscode.window.showQuickPick(["否", "是"], {
       placeHolder: "是否设置项目图标？",
       canPickMany: false,
     });
@@ -570,7 +610,7 @@ export class CommandHandlers {
 
     const projects = loadProjects(this.configFile);
     projects.push({
-      id: new Date().getTime().toString(36),
+      id: generateProjectId(),
       name: name.trim(),
       path: currentFolderPath,
       icon: iconName || undefined,
@@ -604,6 +644,36 @@ export class CommandHandlers {
       );
     } catch (error) {
       vscode.window.showErrorMessage(`打开配置文件失败: ${error}`);
+    }
+  }
+
+  /**
+   * * 搜索并打开项目
+   */
+  async handleSearchProject(): Promise<void> {
+    const projects = loadProjects(this.configFile);
+    if (projects.length === 0) {
+      vscode.window.showInformationMessage("还没有保存任何项目");
+      return;
+    }
+
+    const items = projects.map((project) => ({
+      label: project.name,
+      description: project.folder
+        ? `文件夹：${project.folder}`
+        : project.path,
+      detail: project.folder ? project.path : undefined,
+      project,
+    }));
+
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: "输入关键词搜索项目",
+      matchOnDescription: true,
+      matchOnDetail: true,
+    });
+
+    if (selected) {
+      await this.handleOpenProject(selected.project);
     }
   }
 }

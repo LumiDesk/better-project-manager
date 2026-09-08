@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { IconManager } from "../utils/iconManager";
-import { loadProjects, getFolderConfig } from "../utils/common";
+import { loadProjects, getFolderConfig, isDirectory } from "../utils/common";
 import type { TreeItem, ProjectItem, FolderItem } from "../types/project";
 
 /**
@@ -61,7 +61,6 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<TreeItem> {
     }
 
     // 处理项目项
-    // 修改项目项的图标设置部分
     const project = element as ProjectItem;
     const treeItem = new vscode.TreeItem(
       project.name,
@@ -69,16 +68,25 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<TreeItem> {
     );
     treeItem.id = project.id;
 
-    // 根据配置决定是否显示项目路径
+    // 检查项目路径是否仍然有效
+    const pathValid = isDirectory(project.path);
+
+    // 根据配置决定是否显示项目路径，路径失效时给出提示
     const showPath = vscode.workspace
       .getConfiguration("betterProjectManager")
       .get("showProjectPath", true);
-    if (showPath) {
+    if (showPath && pathValid) {
       treeItem.description = project.path;
+    } else if (!pathValid) {
+      treeItem.description = showPath
+        ? `${project.path}（路径不存在）`
+        : "路径不存在";
     }
 
-    // 修改图标设置 - 如果有自定义图标则使用，否则使用VSCode的code图标
-    if (project.icon) {
+    // 修改图标设置 - 路径失效时使用警告图标
+    if (!pathValid) {
+      treeItem.iconPath = new vscode.ThemeIcon("warning");
+    } else if (project.icon) {
       const iconPath = this.iconManager.getProjectIconPath(
         project,
         this.configFile
@@ -89,10 +97,13 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<TreeItem> {
           dark: vscode.Uri.file(iconPath),
         };
       } else {
-        // 否则 可能存在以外的问题 例如图标文件不存在
-        vscode.window.showErrorMessage(
-          `无法找到项目 ${project.name} 的图标文件`
-        );
+        // 图标文件不存在，回退到默认图标
+        const showDefaultIcon = vscode.workspace
+          .getConfiguration("betterProjectManager")
+          .get("showDefaultProjectIcon", true);
+        if (showDefaultIcon) {
+          treeItem.iconPath = new vscode.ThemeIcon("code");
+        }
       }
     } else {
       // 判断配置 是否显示默认项目图标
@@ -104,6 +115,12 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<TreeItem> {
         treeItem.iconPath = new vscode.ThemeIcon("code");
       }
     }
+
+    // 悬浮提示：完整路径与所属文件夹
+    const folderHint = project.folder ? `\n文件夹：${project.folder}` : "";
+    treeItem.tooltip = pathValid
+      ? `${project.name}\n路径：${project.path}${folderHint}`
+      : `${project.name}\n⚠ 路径不存在：${project.path}`;
 
     treeItem.command = {
       command: "project-manager.openProject",

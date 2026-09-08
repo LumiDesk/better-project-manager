@@ -12,10 +12,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Kaede221/better-project-manager.git"
+    "url": "https://github.com/LumiDesk/better-project-manager.git"
   },
   "author": {
-    "name": "Kaede Shimizu",
+    "name": "Talyra42",
     "email": "kaedeshimizu@qq.com"
   },
   "version": "0.1.5",
@@ -25,8 +25,17 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
   "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "需要访问本地文件系统以打开和管理项目"
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "项目管理依赖本地文件夹，无法在虚拟工作区中使用"
+    }
+  },
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -46,6 +55,12 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "betterProjectManagerSidebar",
+        "contents": "还没有保存任何项目。\n[添加项目](command:project-manager.addProject)\n[保存当前文件夹为项目](command:project-manager.saveCurrentFolderAsProject)\n[打开新手引导](command:project-manager.showOnboarding)"
+      }
+    ],
     "commands": [
       {
         "command": "project-manager.saveCurrentFolderAsProject",
@@ -61,6 +76,11 @@
         "command": "project-manager.editConfig",
         "title": "编辑配置文件",
         "icon": "$(edit)"
+      },
+      {
+        "command": "project-manager.searchProject",
+        "title": "搜索并打开项目",
+        "icon": "$(search)"
       },
       {
         "command": "project-manager.openProject",
@@ -121,6 +141,11 @@
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "project-manager.searchProject",
+          "when": "view == betterProjectManagerSidebar",
+          "group": "navigation"
+        },
         {
           "command": "project-manager.saveCurrentFolderAsProject",
           "when": "view == betterProjectManagerSidebar",
@@ -205,7 +230,7 @@
       "properties": {
         "betterProjectManager.showProjectPath": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "是否在项目中显示项目路径"
         },
         "betterProjectManager.showDefaultProjectIcon": {
@@ -233,7 +258,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "@types/vscode": "^1.100.0",
+    "@types/vscode": "1.100.0",
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.42.0",
     "esbuild": "^0.25.9",

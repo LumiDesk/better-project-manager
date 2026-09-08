@@ -3,6 +3,4 @@ dist
 node_modules
 .vscode-test/
 *.vsix
-.vscode
-pnpm-lock.yaml
 yarn.lock

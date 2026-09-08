@@ -2,6 +2,7 @@ import type { ProjectItem, FolderConfig, ConfigData } from "../types/project";
 import * as path from "path";
 import * as fs from "fs";
 import * as vscode from "vscode";
+import { randomUUID } from "crypto";
 
 /**
  * 日志输出通道
@@ -39,6 +40,44 @@ export function log(
     console.log(formattedMessage);
   }
 }
+
+/**
+ * 释放日志输出通道
+ */
+export function disposeOutputChannel(): void {
+  outputChannel?.dispose();
+  outputChannel = undefined;
+}
+
+/**
+ * 标准化路径用于比较
+ * @description Windows 下忽略大小写，并解析相对路径与尾斜杠差异
+ * @param p 待标准化路径
+ * @returns 标准化后的路径
+ */
+export const normalizePathForCompare = (p: string): string => {
+  const resolved = path.resolve(p);
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+};
+
+/**
+ * 生成唯一的项目 id
+ * @returns 随机 UUID
+ */
+export const generateProjectId = (): string => randomUUID();
+
+/**
+ * 检查路径是否为存在的目录
+ * @param p 待检查路径
+ * @returns 是否为存在的目录
+ */
+export const isDirectory = (p: string): boolean => {
+  try {
+    return fs.existsSync(p) && fs.statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
+};
 
 /**
  * 验证项目数据结构
@@ -330,4 +369,39 @@ export const commonSelectFolder = async (
   }
 
   return { folderName: selectedFolder, cancelled: false };
+};
+
+/**
+ * 删除未被任何项目或文件夹引用的图标文件
+ * @param iconName 图标文件名
+ * @param configFile 项目配置文件路径
+ */
+export const deleteIconIfUnused = (
+  iconName: string | undefined,
+  configFile: string
+): void => {
+  if (!iconName) {
+    return;
+  }
+
+  // 仍被某个项目引用则不删除
+  if (loadProjects(configFile).some((p) => p.icon === iconName)) {
+    return;
+  }
+
+  // 仍被某个文件夹引用则不删除
+  if (loadFolderConfigs(configFile).some((f) => f.icon === iconName)) {
+    return;
+  }
+
+  // 无任何引用，删除图标文件
+  const iconPath = path.join(path.dirname(configFile), iconName);
+  try {
+    if (fs.existsSync(iconPath)) {
+      fs.unlinkSync(iconPath);
+      log(`已删除未使用的图标文件: ${iconName}`);
+    }
+  } catch (error) {
+    log(`删除图标文件失败: ${error}`, "warn");
+  }
 };
