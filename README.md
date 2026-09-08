@@ -32,7 +32,7 @@
 3. 点击 **安装**
 4. 安装后点击左侧活动栏的「项目管理器」图标即可使用
 
-> 也可以从 [Releases](https://github.com/Talyra42/better-project-manager/releases) 下载 `.vsix` 文件手动安装。
+> 也可以从 [Releases](https://github.com/LumiDesk/better-project-manager/releases) 下载 `.vsix` 文件手动安装。
 
 ## 🚀 快速上手
 
