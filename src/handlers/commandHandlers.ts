@@ -644,4 +644,34 @@ export class CommandHandlers {
       vscode.window.showErrorMessage(`打开配置文件失败: ${error}`);
     }
   }
+
+  /**
+   * * 搜索并打开项目
+   */
+  async handleSearchProject(): Promise<void> {
+    const projects = loadProjects(this.configFile);
+    if (projects.length === 0) {
+      vscode.window.showInformationMessage("还没有保存任何项目");
+      return;
+    }
+
+    const items = projects.map((project) => ({
+      label: project.name,
+      description: project.folder
+        ? `文件夹：${project.folder}`
+        : project.path,
+      detail: project.folder ? project.path : undefined,
+      project,
+    }));
+
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: "输入关键词搜索项目",
+      matchOnDescription: true,
+      matchOnDetail: true,
+    });
+
+    if (selected) {
+      await this.handleOpenProject(selected.project);
+    }
+  }
 }

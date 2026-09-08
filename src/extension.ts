@@ -80,6 +80,11 @@ function registerCommands(
       handler: handlers.handleOpenProjectInNewWindow.bind(handlers),
     },
     {
+      // NOTE 搜索并打开项目
+      command: "project-manager.searchProject",
+      handler: handlers.handleSearchProject.bind(handlers),
+    },
+    {
       // NOTE 重命名项目
       command: "project-manager.renameProject",
       handler: handlers.handleRenameProject.bind(handlers),

@@ -78,6 +78,11 @@
         "icon": "$(edit)"
       },
       {
+        "command": "project-manager.searchProject",
+        "title": "搜索并打开项目",
+        "icon": "$(search)"
+      },
+      {
         "command": "project-manager.openProject",
         "title": "打开项目"
       },
@@ -136,6 +141,11 @@
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "project-manager.searchProject",
+          "when": "view == betterProjectManagerSidebar",
+          "group": "navigation"
+        },
         {
           "command": "project-manager.saveCurrentFolderAsProject",
           "when": "view == betterProjectManagerSidebar",
