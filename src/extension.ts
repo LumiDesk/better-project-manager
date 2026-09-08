@@ -7,9 +7,7 @@ import { ProjectTreeDragAndDropController } from "./providers/ProjectTreeDragAnd
 
 import { OnboardingPanel } from "./webview/OnboardingPanel";
 import { FileWatcher } from "./utils/fileWatcher";
-
-// 记录文件监视器, 方便后端关闭的时候清理资源
-let fileWatcher: FileWatcher | undefined;
+import { disposeOutputChannel } from "./utils/common";
 
 // 激活
 export function activate(context: vscode.ExtensionContext) {
@@ -47,17 +45,15 @@ export function activate(context: vscode.ExtensionContext) {
     treeProvider
   );
 
-  // 初始化文件监视器
-  fileWatcher = new FileWatcher();
-  const watcher = fileWatcher.createConfigWatcher(configFile, () => {
+  // 初始化文件监视器（纳入订阅，随扩展销毁自动清理）
+  const fileWatcher = new FileWatcher();
+  fileWatcher.createConfigWatcher(configFile, () => {
     treeProvider?.refresh();
   });
+  context.subscriptions.push(fileWatcher);
 
   // 统一注册命令
   registerCommands(context, commandHandlers);
-
-  // 将监视器添加到订阅中
-  context.subscriptions.push(watcher);
 }
 
 /**
@@ -163,8 +159,6 @@ function registerCommands(
 }
 
 export function deactivate() {
-  // 清理资源
-  if (fileWatcher) {
-    fileWatcher.dispose();
-  }
+  // 释放日志输出通道
+  disposeOutputChannel();
 }

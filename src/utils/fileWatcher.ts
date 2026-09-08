@@ -25,13 +25,15 @@ export class FileWatcher {
       fs.mkdirSync(configDir, { recursive: true });
     }
 
-    // 创建文件系统监视器
+    // 创建文件系统监视器（同时监听项目配置与文件夹配置）
     const watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(configDir, "project-manager.json")
+      new vscode.RelativePattern(configDir, "*.json")
     );
 
     // 监听文件变化事件
     watcher.onDidChange(onConfigChange);
+    watcher.onDidCreate(onConfigChange);
+    watcher.onDidDelete(onConfigChange);
 
     this.watcher = watcher;
     return watcher;

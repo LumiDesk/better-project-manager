@@ -42,6 +42,14 @@ export function log(
 }
 
 /**
+ * 释放日志输出通道
+ */
+export function disposeOutputChannel(): void {
+  outputChannel?.dispose();
+  outputChannel = undefined;
+}
+
+/**
  * 标准化路径用于比较
  * @description Windows 下忽略大小写，并解析相对路径与尾斜杠差异
  * @param p 待标准化路径
