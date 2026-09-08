@@ -55,6 +55,12 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "betterProjectManagerSidebar",
+        "contents": "还没有保存任何项目。\n[添加项目](command:project-manager.addProject)\n[保存当前文件夹为项目](command:project-manager.saveCurrentFolderAsProject)\n[打开新手引导](command:project-manager.showOnboarding)"
+      }
+    ],
     "commands": [
       {
         "command": "project-manager.saveCurrentFolderAsProject",
