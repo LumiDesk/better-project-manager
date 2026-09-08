@@ -19,6 +19,7 @@ const bump = process.argv.slice(2).find((a) => !a.startsWith("--"));
 
 const USAGE =
   "用法: pnpm release <patch|minor|major|x.y.z> [--dry-run] [--skip-check]";
+const VERSION_FILES = ["package.json", "README.md", "NOTE.md"];
 
 function fail(msg) {
   console.error(`\n✘ ${msg}`);
@@ -33,6 +34,7 @@ function sh(cmd) {
   }
 }
 
+// git 是可执行文件（git.exe），spawnSync 可直接调用
 function git(...args) {
   if (dryRun) {
     console.log(`  > git ${args.join(" ")}`);
@@ -40,8 +42,27 @@ function git(...args) {
   }
   const r = spawnSync("git", args, { cwd: root, stdio: "inherit" });
   if (r.status !== 0) {
-    fail(`git ${args[0]} 执行失败`);
+    throw new Error(`git ${args[0]} 执行失败`);
   }
+}
+
+let next;
+let tag;
+
+function rollback() {
+  console.log("\n↩ 回滚未完成的发布改动...");
+  spawnSync("git", ["tag", "-d", tag], { cwd: root, stdio: "ignore" });
+  if (sh("git log -1 --pretty=%s") === `chore(release): ${next}`) {
+    spawnSync("git", ["reset", "--soft", "HEAD~1"], {
+      cwd: root,
+      stdio: "ignore",
+    });
+  }
+  spawnSync("git", ["checkout", "--", ...VERSION_FILES], {
+    cwd: root,
+    stdio: "ignore",
+  });
+  console.log("已回滚到发布前状态。");
 }
 
 if (!bump) {
@@ -64,7 +85,6 @@ const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
 const current = pkg.version;
 
 const exact = /^\d+\.\d+\.\d+$/;
-let next;
 if (bump === "patch" || bump === "minor" || bump === "major") {
   const [major, minor, patch] = current.split(".").map(Number);
   if (bump === "major") next = `${major + 1}.0.0`;
@@ -84,39 +104,45 @@ const cmp = (a, b) => {
 if (cmp(next, current) <= 0) {
   fail(`新版本 ${next} 必须高于当前版本 ${current}`);
 }
+tag = `v${next}`;
 
 console.log(
   `\n发布 ${current} → ${next}${dryRun ? "（dry-run，不实际修改）" : ""}\n`
 );
 
-// 更新 package.json
-pkg.version = next;
-if (!dryRun) {
+// 类型检查：提前到写文件之前，失败不会留下任何改动
+// 注意用 execSync（走 shell），Windows 下 pnpm 是 .cmd 脚本，spawnSync 直接调用会 ENOENT
+if (!skipCheck && !dryRun) {
+  console.log("运行类型检查...");
+  try {
+    execSync("pnpm run check-types", { cwd: root, stdio: "inherit" });
+  } catch {
+    fail("类型检查失败，已中止发布（未修改任何文件）");
+  }
+}
+
+// 更新版本文件
+if (dryRun) {
+  for (const f of VERSION_FILES) console.log(`  将更新 ${f}`);
+} else {
+  pkg.version = next;
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
-}
 
-// 更新 README 版本徽章
-const readmePath = join(root, "README.md");
-let readme = readFileSync(readmePath, "utf8");
-const readmeNext = readme.replace(/version-\d+\.\d+\.\d+/, `version-${next}`);
-if (readmeNext === readme) {
-  console.warn("⚠ 未在 README 中找到版本徽章，已跳过");
-} else if (!dryRun) {
-  writeFileSync(readmePath, readmeNext);
-}
+  const readmePath = join(root, "README.md");
+  let readme = readFileSync(readmePath, "utf8");
+  const readmeNext = readme.replace(/version-\d+\.\d+\.\d+/, `version-${next}`);
+  if (readmeNext === readme) console.warn("⚠ 未在 README 中找到版本徽章，已跳过");
+  else writeFileSync(readmePath, readmeNext);
 
-// 更新 NOTE.md
-const notePath = join(root, "NOTE.md");
-if (existsSync(notePath)) {
-  const note = readFileSync(notePath, "utf8");
-  const noteNext = note.replace(
-    /当前已发布版本: \d+\.\d+\.\d+/,
-    `当前已发布版本: ${next}`
-  );
-  if (noteNext === note) {
-    console.warn("⚠ 未在 NOTE.md 中找到版本号，已跳过");
-  } else if (!dryRun) {
-    writeFileSync(notePath, noteNext);
+  const notePath = join(root, "NOTE.md");
+  if (existsSync(notePath)) {
+    const note = readFileSync(notePath, "utf8");
+    const noteNext = note.replace(
+      /当前已发布版本: \d+\.\d+\.\d+/,
+      `当前已发布版本: ${next}`
+    );
+    if (noteNext === note) console.warn("⚠ 未在 NOTE.md 中找到版本号，已跳过");
+    else writeFileSync(notePath, noteNext);
   }
 }
 
@@ -129,30 +155,23 @@ if (existsSync(changelogPath)) {
   }
 }
 
-// 类型检查
-if (!skipCheck && !dryRun) {
-  console.log("运行类型检查...");
-  const r = spawnSync("pnpm", ["run", "check-types"], {
-    cwd: root,
-    stdio: "inherit",
-  });
-  if (r.status !== 0) {
-    fail("类型检查失败，已中止发布");
-  }
-}
-
 if (dryRun) {
   console.log("\ndry-run 完成，未做任何修改。");
   process.exit(0);
 }
 
-// 提交 + 打 tag + 推送
-const tag = `v${next}`;
-git("add", "package.json", "README.md", "NOTE.md");
-git("commit", "-m", `chore(release): ${next}`);
-git("tag", "-a", tag, "-m", `v${next}`);
-git("push", "origin", "master");
-git("push", "origin", tag);
+// 提交 + 打 tag + 推送（失败自动回滚）
+try {
+  git("add", ...VERSION_FILES);
+  git("commit", "-m", `chore(release): ${next}`);
+  git("tag", "-a", tag, "-m", `v${next}`);
+  git("push", "origin", "master");
+  git("push", "origin", tag);
+} catch (e) {
+  rollback();
+  console.error(`\n✘ ${e.message}`);
+  process.exit(1);
+}
 
 console.log(`\n✅ 已发布 ${next}（tag: ${tag}）`);
 console.log("GitHub Actions 将自动构建 .vsix 并创建 pre-release。");
